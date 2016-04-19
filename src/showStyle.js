@@ -1,16 +1,32 @@
-// import 'babel-polyfill'
+const allowedProperties = ["color"]
 
 for (let sheetId of Object.keys(document.styleSheets)){
-  let sheet = document.styleSheets[sheetId]
-  console.log('======================')
-  console.log(sheet)
+  const sheet = document.styleSheets[sheetId]
+
+  //This new css sheet will replace the original with rules containing only allowed properties
+  let newSheet = createNewSheet() 
+
   for (let ruleId of Object.keys(sheet.rules)){
-    let rule = sheet.rules[ruleId]
-    console.log('-------------')
-    let definedStyles = Object.keys(rule.style).filter(key => !isNaN(parseInt(key, 10)) )
-    definedStyles.map(k => {
+    const rule = sheet.rules[ruleId]
+    const newRuleProperties = Object.keys(rule.style).filter(key => !isNaN(parseInt(key, 10)) ) //Defined properties are indexed by numbers
+    .filter(k => allowedProperties.indexOf(rule.style[k]) !== -1) //Keep only allowed properties 
+    .map(k => {
         const attribute = rule.style[k]
-        console.log(attribute, rule.style[attribute])
+        return `${attribute}: ${rule.style[attribute]}` 
       })
+
+    //Add cleaned rule on the new css sheet
+    if (newRuleProperties.length > 0){
+      newSheet.addRule(rule.selectorText, newRuleProperties.join(', '))
+    }
   }
+
+  //Disable the original css sheet
+  sheet.disabled = true
+}
+
+function createNewSheet(){
+  const style = document.createElement("style")
+  document.head.appendChild(style)
+  return style.sheet
 }
