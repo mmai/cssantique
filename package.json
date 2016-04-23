@@ -20,6 +20,6 @@
     "webpack": "^1.12.14"
   },
   "dependencies": {
-    "browser-data": "0.0.1"
+    "browser-data": "^0.1.0"
   }
 }
