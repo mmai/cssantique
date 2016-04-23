@@ -9,7 +9,11 @@ module.exports = {
   },
   module: {
     loaders: [
-      { test: /.js$/, include: [path.resolve(__dirname, "src")], loader: 'babel-loader' },
+      { test: /.json/, include: [path.resolve(__dirname, "node_modules/browser-data/")], loader: 'json-loader' },
+      { test: /.js/, include: [path.resolve(__dirname, "src")], loader: 'babel-loader' },
     ]
   },
+  node: {
+    fs: "empty"
+  }
 };

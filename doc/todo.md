@@ -1,5 +1,8 @@
 # todo
 
-* extension fonctionnelle
-* restrict supported css rules
-* call caniuse api
+* styles internes
+* styles sur éléments
+    => utiliser developper tools ?
+
+* bdd properties <=> caniuse
+* compatibilité selecteurs ?
