@@ -2,10 +2,15 @@ var path = require('path');
 var webpack = require('webpack');
 
 module.exports = {
-  entry: './src/showStyle.js',
+  entry: {
+    executeShowStyle: './src/executeShowStyle',
+    showStyle: ['./src/showStyle'], //the [] are needed because executeShowStyle already depends on showStyle
+  },
   output: {
     path: path.resolve(__dirname, 'js/'),
-    filename: 'showStyle.js'
+    filename: "[name].js",
+    libraryTarget: "var",
+    library: "ShowStyle"
   },
   module: {
     loaders: [

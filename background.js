@@ -1,5 +1,5 @@
 // Called when the user clicks on the browser action.
 chrome.browserAction.onClicked.addListener(function(tab) {
-    chrome.tabs.executeScript(null, { file: "js/showStyle.js" });
-    // console.log(chrome.runtime.lastError);
+    chrome.tabs.executeScript(null, { file: "js/executeShowStyle.js" });
+    //console.log(chrome.runtime.lastError);
   });

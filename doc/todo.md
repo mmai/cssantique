@@ -1,6 +1,7 @@
-# todo
+# TODO
 
-* styles internes
+* styles internes => ok ?
+* @media rules
 * styles sur éléments
     => utiliser developper tools ?
 
