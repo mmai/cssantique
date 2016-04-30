@@ -34,10 +34,11 @@ function parseRulesIntoSheet (rules, newSheet) {
     } else if ((typeof rule.style) !== 'object') {
       console.error(rule)
     } else {
-      const newRuleProperties = Object.keys(rule.style).filter((key) => !isNaN(parseInt(key, 10))) // Defined properties are indexed by numbers
-      // .filter(k => allowedProperties.indexOf(rule.style[k]) !== -1) //Keep only allowed properties
-      .filter((k) => browserSupport(browser.name, browser.version, rule.style[k])) // Keep only properties supported by the targeted browser
-
+      const newRuleProperties = Object.keys(rule.style)
+      // Defined properties are indexed by numbers
+      .filter((key) => !isNaN(parseInt(key, 10)))
+       // Keep only properties supported by the targeted browser
+      .filter((k) => browserSupport(browser.name, browser.version, rule.style[k]))
       .map((k) => {
         const attribute = rule.style[k]
         return `${attribute}: ${rule.style[attribute]}`
@@ -61,6 +62,6 @@ export function findStyleSheet (filename) {
   let stylesheets = window.document.styleSheets
 
   return Object.keys(stylesheets)
-  .filter((k) => stylesheets[k].href.indexOf(filename) > -1 )
+  .filter((k) => stylesheets[k].href.indexOf(filename) > -1)
   .map((k) => stylesheets[k])
 }
