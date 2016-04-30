@@ -3,14 +3,14 @@ var webpack = require('webpack');
 
 module.exports = {
   entry: {
-    executeShowStyle: './src/executeShowStyle',
-    showStyle: ['./src/showStyle'], //the [] are needed because executeShowStyle already depends on showStyle
+    main: './src/main',
+    cssantique: ['./src/cssantique'], //the [] are needed because main already depends on cssantique
   },
   output: {
     path: path.resolve(__dirname, 'js/'),
     filename: "[name].js",
     libraryTarget: "var",
-    library: "ShowStyle"
+    library: "CSSAntique"
   },
   module: {
     loaders: [

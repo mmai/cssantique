@@ -1,12 +1,12 @@
 /* eslint-env mocha */
 
 var expect = window.chai.expect
-var showStyle = window.ShowStyle.showStyle
+var filterStyles = window.CSSAntique.filterStyles
 
-describe('showStyle', function () {
+describe('filterStyles', function () {
   it('should ignore specified stylesheet files', function () {
-    let mochacss = window.ShowStyle.findStyleSheet((s) => s.href.indexOf('mocha.css') > -1)[0]
-    showStyle({ignore: ['mocha.css']})
+    let mochacss = window.CSSAntique.findStyleSheet('mocha.css')[0]
+    filterStyles({ignore: ['mocha.css']})
     expect(mochacss.disabled).to.be.false
   })
 })

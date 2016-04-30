@@ -2,7 +2,7 @@ import {browserSupport} from 'browser-data'
 
 var browser = {name: 'Firefox', version: '3'}
 
-export function showStyle (options = { ignore: [] }) {
+export function filterStyles (options = { ignore: [] }) {
   // This new css sheet will replace the originals with rules containing only allowed properties
   let newSheet = createNewSheet()
 
@@ -57,10 +57,10 @@ function createNewSheet () {
   return style.sheet
 }
 
-export function findStyleSheet (findFunction) {
+export function findStyleSheet (filename) {
   let stylesheets = window.document.styleSheets
 
   return Object.keys(stylesheets)
-  .filter((k) => findFunction(stylesheets[k]))
+  .filter((k) => stylesheets[k].href.indexOf(filename) > -1 )
   .map((k) => stylesheets[k])
 }

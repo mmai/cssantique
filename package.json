@@ -1,5 +1,5 @@
 {
-  "name": "restyle",
+  "name": "cssantique",
   "version": "1.0.0",
   "description": "Emulate old browsers CSS support",
   "main": "background.js",
@@ -19,8 +19,6 @@
     "jsdom": "^8.4.0",
     "json-loader": "^0.5.4",
     "mocha": "^2.4.5",
-    "mocha-phantomjs": "^4.0.2",
-    "phantomjs": "^2.1.7",
     "source-map-support": "^0.4.0",
     "webpack": "^1.12.14"
   },
