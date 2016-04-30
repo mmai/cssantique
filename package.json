@@ -3,11 +3,10 @@
   "description": "Emulate old browsers CSS support",
   "main": "js/cssantique.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "commit": "git-cz",
-    "semantic-release": "semantic-release pre && semantic-release post"
+    "test": "make tests",
+    "commit": "git-cz"
   },
-  "author": "",
+  "author": "Henri Bourcereau",
   "license": "ISC",
   "devDependencies": {
     "babel-cli": "^6.6.5",
@@ -22,7 +21,6 @@
     "jsdom": "^8.4.0",
     "json-loader": "^0.5.4",
     "mocha": "^2.4.5",
-    "semantic-release": "^4.3.5",
     "source-map-support": "^0.4.0",
     "webpack": "^1.12.14"
   },
@@ -33,7 +31,9 @@
     "type": "git",
     "url": "https://github.com/mmai/cssantique.git"
   },
-  "czConfig": {
-    "path": "node_modules/cz-conventional-changelog/"
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-conventional-changelog/"
+    }
   }
 }

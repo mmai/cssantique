@@ -62,6 +62,6 @@ export function findStyleSheet (filename) {
   let stylesheets = window.document.styleSheets
 
   return Object.keys(stylesheets)
-  .filter((k) => stylesheets[k].href.indexOf(filename) > -1)
   .map((k) => stylesheets[k])
+  .filter((s) => s.href !== null && s.href.indexOf(filename) > -1)
 }
