@@ -1,7 +1,8 @@
 {
   "name": "cssantique",
+  "version": "0.0.1",
   "description": "Emulate old browsers CSS support",
-  "main": "js/cssantique.js",
+  "main": "cssantique.js",
   "scripts": {
     "test": "make tests",
     "commit": "git-cz"
