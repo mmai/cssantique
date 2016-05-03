@@ -1,15 +1,13 @@
 import { browserSupport } from 'browser-data'
 
-var browser = {name: 'Firefox', version: '3'}
-
-export function filterStyles (options = { ignore: [] }) {
+export function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} }) {
   // This new css sheet will replace the originals with rules containing only allowed properties
   let newSheet = createNewSheet()
 
   for (let sheetId of Object.keys(document.styleSheets)) {
     const sheet = document.styleSheets[sheetId]
     if (!isIgnoredSheet(options.ignore, sheet)) {
-      parseRulesIntoSheet(sheet.rules, newSheet)
+      parseRulesIntoSheet(options.browser, sheet.rules, newSheet)
       sheet.disabled = true // Disable the original css sheet
     }
   }
@@ -23,7 +21,7 @@ function isIgnoredSheet (ignore, sheet) {
   return false
 }
 
-function parseRulesIntoSheet (rules, newSheet) {
+function parseRulesIntoSheet (browser, rules, newSheet) {
   for (let ruleId of Object.keys(rules)) {
     const rule = rules[ruleId]
     if (rule instanceof window.CSSImportRule) {
@@ -38,7 +36,7 @@ function parseRulesIntoSheet (rules, newSheet) {
         // Defined properties are indexed by numbers
         .filter((key) => !isNaN(parseInt(key, 10)))
         // Keep only properties supported by the targeted browser
-        .filter((k) => browserSupport(browser.name, browser.version, rule.style[k]))
+        .filter((k) => browserSupport(browser, rule.style[k]))
         .map((k) => {
           const attribute = rule.style[k]
           return `${attribute}: ${rule.style[attribute]}`

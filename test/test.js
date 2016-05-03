@@ -4,6 +4,7 @@ var expect = window.chai.expect
 var filterStyles = window.CSSAntique.filterStyles
 
 describe('filterStyles', function () {
+  this.timeout(500000)
   it('should ignore specified stylesheet files', function () {
     let mochacss = window.CSSAntique.findStyleSheet('mocha.css')[0]
     filterStyles({ignore: ['mocha.css']})
@@ -52,7 +53,7 @@ function waitForImport (style, callback) {
       style.sheet.cssRules
       clearInterval(ti)
       callback()
-    } catch (e) { }
+    } catch (e) {}
   }, 10)
 }
 
@@ -70,4 +71,3 @@ function loadStylesheet (href, callback) {
   let tag = document.getElementById('content')
   tag.parentNode.insertBefore(css, tag)
 }
-
