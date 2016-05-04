@@ -65,19 +65,23 @@ var CSSAntique =
 	  var options = arguments.length <= 0 || arguments[0] === undefined ? { ignore: [], browser: { name: 'Firefox', version: '3' } } : arguments[0];
 	
 	  // This new css sheet will replace the originals with rules containing only allowed properties
-	  var newSheet = createNewSheet();
+	  var initialSheets = Object.keys(document.styleSheets).map(function (k) {
+	    return document.styleSheets[k];
+	  });
+	
+	  var newStyle = document.createElement('style');
+	  document.head.appendChild(newStyle);
 	
 	  var _iteratorNormalCompletion = true;
 	  var _didIteratorError = false;
 	  var _iteratorError = undefined;
 	
 	  try {
-	    for (var _iterator = Object.keys(document.styleSheets)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-	      var sheetId = _step.value;
+	    for (var _iterator = initialSheets[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+	      var sheet = _step.value;
 	
-	      var sheet = document.styleSheets[sheetId];
 	      if (!isIgnoredSheet(options.ignore, sheet)) {
-	        parseRulesIntoSheet(options.browser, sheet.rules, newSheet);
+	        parseRulesIntoSheet(options.browser, sheet.rules, newStyle.sheet);
 	        sheet.disabled = true; // Disable the original css sheet
 	      }
 	    }
@@ -95,6 +99,8 @@ var CSSAntique =
 	      }
 	    }
 	  }
+	
+	  return newStyle;
 	}
 	
 	function isIgnoredSheet(ignore, sheet) {
@@ -121,8 +127,9 @@ var CSSAntique =
 	        // TODO implement keyframesrule rules
 	        console.log('@keyframe rule not implemented');
 	      } else if (rule instanceof window.CSSMediaRule) {
-	        // TODO implement media rules
-	        console.log('@media rule not implemented');
+	        if ((0, _browserData.browserSupport)(browser, '@media')) {
+	          parseRulesIntoSheet(browser, rule.cssRules, newSheet);
+	        }
 	      } else if (_typeof(rule.style) !== 'object') {
 	        console.error(rule);
 	      } else {
@@ -163,12 +170,6 @@ var CSSAntique =
 	      }
 	    }
 	  }
-	}
-	
-	function createNewSheet() {
-	  var style = document.createElement('style');
-	  document.head.appendChild(style);
-	  return style.sheet;
 	}
 	
 	function findStyleSheet(filename) {
@@ -3868,6 +3869,376 @@ var CSSAntique =
 			"Trident": "10.0",
 			"EdgeHTML": "12",
 			"Gecko": "39.0",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"!important": {
+			"Trident": "7.0",
+			"EdgeHTML": "12",
+			"Gecko": "1.0",
+			"WebKit": "85",
+			"KHTML": "Yes",
+			"Presto": "1.0",
+			"Prince": "Yes",
+			"Martha": "?"
+		},
+		"/*Comment*/": {
+			"Trident": "3.0",
+			"EdgeHTML": "12",
+			"Gecko": "1.0",
+			"WebKit": "85",
+			"KHTML": "Yes",
+			"Presto": "1.0",
+			"Prince": "Yes",
+			"Martha": "?"
+		},
+		"@import": {
+			"Trident": "8.0",
+			"EdgeHTML": "12",
+			"Gecko": "1.0",
+			"WebKit": "Yes",
+			"KHTML": "Yes",
+			"Presto": "1.0",
+			"Prince": "2.1",
+			"Martha": "Yes"
+		},
+		"@charset": {
+			"Trident": "5.5",
+			"EdgeHTML": "12",
+			"Gecko": "1.0",
+			"WebKit": "Yes",
+			"KHTML": "4.2.3",
+			"Presto": "1.0",
+			"Prince": "Yes",
+			"Martha": "Incorrect"
+		},
+		"@media": {
+			"Trident": "5.5",
+			"EdgeHTML": "12",
+			"Gecko": "1.0",
+			"WebKit": "Yes",
+			"KHTML": "Yes",
+			"Presto": "1.0",
+			"Prince": "5.1",
+			"Martha": "Yes"
+		},
+		"@namespace": {
+			"Trident": "9.0",
+			"EdgeHTML": "12",
+			"Gecko": "1.0",
+			"WebKit": "Yes",
+			"KHTML": "Yes",
+			"Presto": "1.0",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@document": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "6.0",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@keyframes": {
+			"Trident": "10.0",
+			"EdgeHTML": "12",
+			"Gecko": "16.0",
+			"WebKit": "Experimental",
+			"KHTML": "No",
+			"Presto": "2.12",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@supports": {
+			"Trident": "No",
+			"EdgeHTML": "12",
+			"Gecko": "22.0",
+			"WebKit": "28.0",
+			"KHTML": "No",
+			"Presto": "2.12",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@counter-style": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "33.0",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@viewport": {
+			"Trident": "10.0",
+			"EdgeHTML": "12.0",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "2.7.62",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@filter": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "35.0",
+			"WebKit": "Experimental",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@page": {
+			"Trident": "8.0",
+			"EdgeHTML": "12",
+			"Gecko": "19.0",
+			"WebKit": "Nightly Build",
+			"KHTML": "No",
+			"Presto": "1.0",
+			"Prince": "6.0",
+			"Martha": "Yes"
+		},
+		"@top-left-corner": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@top-left": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@top-center": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@top-right": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@top-right-corner": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@bottom-left-corner": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@bottom-left": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@bottom-center": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@bottom-right": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@bottom-right-corner": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@left-top": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@left-middle": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@left-bottom": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@right-top": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@right-middle": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@right-bottom": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "No",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "5.0",
+			"Martha": "Yes"
+		},
+		"@font-face": {
+			"Trident": "9.0",
+			"EdgeHTML": "12",
+			"Gecko": "1.9.1",
+			"WebKit": "525",
+			"KHTML": "4.3",
+			"Presto": "2.2",
+			"Prince": "6.0",
+			"Martha": "Yes"
+		},
+		"@font-feature-values": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "34.0",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@annotation": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "34.0",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@styleset": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "34.0",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@swash": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "34.0",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@ornaments": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "34.0",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@stylistic": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "34.0",
+			"WebKit": "No",
+			"KHTML": "No",
+			"Presto": "No",
+			"Prince": "No",
+			"Martha": "No"
+		},
+		"@character-variant": {
+			"Trident": "No",
+			"EdgeHTML": "No",
+			"Gecko": "34.0",
 			"WebKit": "No",
 			"KHTML": "No",
 			"Presto": "No",

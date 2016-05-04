@@ -2,15 +2,18 @@ import { browserSupport } from 'browser-data'
 
 export function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} }) {
   // This new css sheet will replace the originals with rules containing only allowed properties
-  let newSheet = createNewSheet()
+  let initialSheets = Object.keys(document.styleSheets).map((k) => document.styleSheets[k])
 
-  for (let sheetId of Object.keys(document.styleSheets)) {
-    const sheet = document.styleSheets[sheetId]
+  let newStyle = document.createElement('style')
+  document.head.appendChild(newStyle)
+
+  for (let sheet of initialSheets) {
     if (!isIgnoredSheet(options.ignore, sheet)) {
-      parseRulesIntoSheet(options.browser, sheet.rules, newSheet)
+      parseRulesIntoSheet(options.browser, sheet.rules, newStyle.sheet)
       sheet.disabled = true // Disable the original css sheet
     }
   }
+  return newStyle
 }
 
 function isIgnoredSheet (ignore, sheet) {
@@ -30,8 +33,9 @@ function parseRulesIntoSheet (browser, rules, newSheet) {
       // TODO implement keyframesrule rules
       console.log('@keyframe rule not implemented')
     } else if (rule instanceof window.CSSMediaRule) {
-      // TODO implement media rules
-      console.log('@media rule not implemented')
+      if (browserSupport(browser, '@media')) {
+        parseRulesIntoSheet(browser, rule.cssRules, newSheet)
+      }
     } else if ((typeof rule.style) !== 'object') {
       console.error(rule)
     } else {
@@ -51,12 +55,6 @@ function parseRulesIntoSheet (browser, rules, newSheet) {
       }
     }
   }
-}
-
-function createNewSheet () {
-  const style = document.createElement('style')
-  document.head.appendChild(style)
-  return style.sheet
 }
 
 export function findStyleSheet (filename) {
