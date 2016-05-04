@@ -4,10 +4,11 @@ var expect = window.chai.expect
 var filterStyles = window.CSSAntique.filterStyles
 
 describe('filterStyles', function () {
-  this.timeout(500000)
+  // this.timeout(500000)
+  before(reset)
   it('should ignore specified stylesheet files', function () {
     let mochacss = window.CSSAntique.findStyleSheet('mocha.css')[0]
-    filterStyles({ignore: ['mocha.css']})
+    filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}})
     expect(mochacss.disabled).to.be.false
   })
 
@@ -15,7 +16,7 @@ describe('filterStyles', function () {
     loadStylesheet('./fixtures/css/dummy.css', function () {
       let dummycss = window.CSSAntique.findStyleSheet('dummy.css')[0]
       expect(dummycss.disabled).to.be.false
-      filterStyles({ignore: ['mocha.css']})
+      filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}})
       expect(dummycss.disabled).to.be.true
       done()
     })
@@ -24,7 +25,7 @@ describe('filterStyles', function () {
   it('should read local styles', function () {
     setContent('<style>.dummy {}</style>')
     let nbStylesheets = Object.keys(document.styleSheets).length
-    filterStyles({ignore: ['mocha.css']})
+    filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}})
     expect(Object.keys(document.styleSheets).length).to.equal(nbStylesheets + 1)
   })
 
@@ -34,13 +35,20 @@ describe('filterStyles', function () {
     style.textContent = '@import url("./fixtures/css/dummy2.css")'
     document.head.appendChild(style)
     waitForImport(style, function () {
-      let el = document.getElementsByClassName('dummy2')[0]
-      expect(window.getComputedStyle(el)['flexDirection']).to.equal('column')
-      filterStyles({ignore: ['mocha.css']})
-      expect(window.getComputedStyle(el)['flexDirection']).to.equal('row')
-      done()
+      try {
+        let el = document.getElementsByClassName('dummy2')[0]
+        expect(window.getComputedStyle(el)['flexDirection']).to.equal('column')
+        filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}})
+        expect(window.getComputedStyle(el)['flexDirection']).to.equal('row')
+        done()
+      } catch (e) {
+        return done(e)
+      }
     })
   })
+
+  it('should manage @media rules')
+  it('should manage @keyframe rules')
 })
 
 function setContent (content) {
@@ -50,6 +58,7 @@ function setContent (content) {
 function waitForImport (style, callback) {
   let ti = setInterval(function () {
     try {
+      // console.log('imported', style.sheet.cssRules)
       style.sheet.cssRules
       clearInterval(ti)
       callback()
@@ -70,4 +79,8 @@ function loadStylesheet (href, callback) {
   }
   let tag = document.getElementById('content')
   tag.parentNode.insertBefore(css, tag)
+}
+
+function reset () {
+  setContent('')
 }

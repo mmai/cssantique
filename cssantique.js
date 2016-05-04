@@ -25,7 +25,10 @@ function parseRulesIntoSheet (browser, rules, newSheet) {
   for (let ruleId of Object.keys(rules)) {
     const rule = rules[ruleId]
     if (rule instanceof window.CSSImportRule) {
-      parseRulesIntoSheet(rule.styleSheet.rules, newSheet)
+      parseRulesIntoSheet(browser, rule.styleSheet.rules, newSheet)
+    } else if (rule instanceof window.CSSKeyframesRule) {
+      // TODO implement keyframesrule rules
+      console.log('@keyframe rule not implemented')
     } else if (rule instanceof window.CSSMediaRule) {
       // TODO implement media rules
       console.log('@media rule not implemented')
