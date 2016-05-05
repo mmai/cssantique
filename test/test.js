@@ -15,7 +15,7 @@ describe('filterStyles', function () {
   })
 
   it('should read external stylesheets', function (done) {
-    loadStylesheet('./fixtures/css/dummy.css', function () {
+    loadStylesheet('./fixtures/css/dummy.css', function (style) {
       let dummycss = window.CSSAntique.findStyleSheet('dummy.css')[0]
       expect(dummycss.disabled).to.be.false
       newStylesElems.push(filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}))
@@ -59,10 +59,11 @@ describe('filterStyles @media rules', function () {
 
   var mediaStyle
 
-  before(function () {
-    mediaStyle = document.createElement('style')
-    mediaStyle.textContent = '.mediarules { font-size: 10px; }\n @media (min-width: 5px) { .mediarules { font-size: 24px; }}'
-    document.head.appendChild(mediaStyle)
+  before(function (done) {
+    loadStylesheet('./fixtures/css/media.css', function (style) {
+      mediaStyle = style
+      done()
+    })
   })
 
   beforeEach(function () {
@@ -85,7 +86,13 @@ describe('filterStyles @media rules', function () {
     expect(window.getComputedStyle(el)['font-size']).to.equal('24px')
   })
 
-  it('should inject current browser @media values')
+  it('should inject current browser @media values', function () {
+    let el = document.getElementsByClassName('mediarules')[0]
+    expect(window.getComputedStyle(el)['border-style']).to.equal('solid')
+    let newStyle = filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}})
+    newStylesElems.push(newStyle)
+    expect(window.getComputedStyle(el)['border-style']).to.equal('solid')
+  })
 })
 // */
 
@@ -112,7 +119,7 @@ function loadStylesheet (href, callback) {
   css.onload = css.onreadystatechange = function () {
     if (!finished && (!this.readyState || this.readyState === 'complete')) {
       finished = true
-      callback()
+      callback(css)
     }
   }
   let tag = document.getElementById('content')

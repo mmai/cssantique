@@ -1,0 +1,17 @@
+.mediarules {
+  font-size: 10px;
+  border-width:1px;
+  border-style: solid;
+}
+
+@media (min-width: 5px) {
+  .mediarules {
+    font-size: 24px;
+  }
+}
+
+@media print {
+  .mediarules {
+    border-style: dotted;
+  }
+}

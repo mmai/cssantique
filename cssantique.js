@@ -31,30 +31,50 @@ function parseRulesIntoSheet (browser, rules, newSheet) {
       parseRulesIntoSheet(browser, rule.styleSheet.rules, newSheet)
     } else if (rule instanceof window.CSSKeyframesRule) {
       // TODO implement keyframesrule rules
-      console.log('@keyframe rule not implemented')
     } else if (rule instanceof window.CSSMediaRule) {
       if (browserSupport(browser, '@media')) {
-        parseRulesIntoSheet(browser, rule.cssRules, newSheet)
+        let cleanedMediaRules = []
+        for (let mediaRuleId of Object.keys(rule.cssRules)) {
+          const mediaRule = rule.cssRules[mediaRuleId]
+          const cleanedMediaRule = getCleanedRule(browser, mediaRule)
+          if (cleanedMediaRule !== false) {
+            cleanedMediaRules.push(cleanedMediaRule)
+          }
+        }
+        newSheet.addRule(`@media ${rule.media.mediaText}`, cleanedMediaRules.map(
+          (r) => `${r.rule} {${r.properties}}`
+        ).join('\n'))
       }
     } else if ((typeof rule.style) !== 'object') {
       console.error(rule)
     } else {
-      const newRuleProperties = Object.keys(rule.style)
-        // Defined properties are indexed by numbers
-        .filter((key) => !isNaN(parseInt(key, 10)))
-        // Keep only properties supported by the targeted browser
-        .filter((k) => browserSupport(browser, rule.style[k]))
-        .map((k) => {
-          const attribute = rule.style[k]
-          return `${attribute}: ${rule.style[attribute]}`
-        })
-
+      const cleanedRule = getCleanedRule(browser, rule)
       // Add cleaned rule on the new css sheet
-      if (newRuleProperties.length > 0) {
-        newSheet.addRule(rule.selectorText, newRuleProperties.join(', '))
+      if (cleanedRule !== false) {
+        newSheet.addRule(cleanedRule.rule, cleanedRule.properties)
       }
     }
   }
+}
+
+function getCleanedRule (browser, rule) {
+  const knownProperties = Object.keys(rule.style)
+    // Defined properties are indexed by numbers
+    .filter((key) => !isNaN(parseInt(key, 10)))
+    // Keep only properties supported by the targeted browser
+    .filter((k) => browserSupport(browser, rule.style[k]))
+    .map((k) => {
+      const attribute = rule.style[k]
+      return `${attribute}: ${rule.style[attribute]}`
+    })
+
+  if (knownProperties.length > 0) {
+    return {
+      rule: rule.selectorText,
+      properties: knownProperties.join('; ')
+    }
+  }
+  return false
 }
 
 export function findStyleSheet (filename) {
