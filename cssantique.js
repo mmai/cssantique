@@ -1,6 +1,6 @@
-import { browserSupport } from 'browser-data'
+import { browserSupport, browsersDb } from 'browser-data'
 
-export function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} }) {
+var filterStyles = function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} }) {
   // This new css sheet will replace the originals with rules containing only allowed properties
   let initialSheets = Object.keys(document.styleSheets).map((k) => document.styleSheets[k])
 
@@ -77,10 +77,12 @@ function getCleanedRule (browser, rule) {
   return false
 }
 
-export function findStyleSheet (filename) {
+var findStyleSheet = function findStyleSheet (filename) {
   let stylesheets = window.document.styleSheets
 
   return Object.keys(stylesheets)
     .map((k) => stylesheets[k])
     .filter((s) => s.href !== null && s.href.indexOf(filename) > -1)
 }
+
+module.exports = { browsersDb, filterStyles, findStyleSheet}
