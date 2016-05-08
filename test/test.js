@@ -88,10 +88,10 @@ describe('filterStyles @media rules', function () {
 
   it('should inject current browser @media values', function () {
     let el = document.getElementsByClassName('mediarules')[0]
-    expect(window.getComputedStyle(el)['border-style']).to.equal('solid')
+    expect(window.getComputedStyle(el)['border-top-style']).to.equal('solid')
     let newStyle = filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}})
     newStylesElems.push(newStyle)
-    expect(window.getComputedStyle(el)['border-style']).to.equal('solid')
+    expect(window.getComputedStyle(el)['border-top-style']).to.equal('solid')
   })
 })
 // */

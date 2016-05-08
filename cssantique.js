@@ -9,7 +9,7 @@ var filterStyles = function filterStyles (options = { ignore: [], browser: {name
 
   for (let sheet of initialSheets) {
     if (!isIgnoredSheet(options.ignore, sheet)) {
-      parseRulesIntoSheet(options.browser, sheet.rules, newStyle.sheet)
+      parseRulesIntoSheet(options.browser, sheet.cssRules, newStyle.sheet)
       sheet.disabled = true // Disable the original css sheet
     }
   }
@@ -28,10 +28,10 @@ function parseRulesIntoSheet (browser, rules, newSheet) {
   for (let ruleId of Object.keys(rules)) {
     const rule = rules[ruleId]
     if (rule instanceof window.CSSImportRule) {
-      parseRulesIntoSheet(browser, rule.styleSheet.rules, newSheet)
-    } else if (rule instanceof window.CSSKeyframesRule) {
+      parseRulesIntoSheet(browser, rule.styleSheet.cssRules, newSheet)
+    } else if (window.CSSKeyframesRule && rule instanceof window.CSSKeyframesRule) {
       // TODO implement keyframesrule rules
-    } else if (rule instanceof window.CSSMediaRule) {
+    } else if (window.CSSMediaRule && rule instanceof window.CSSMediaRule) {
       if (browserSupport(browser, '@media')) {
         let cleanedMediaRules = []
         for (let mediaRuleId of Object.keys(rule.cssRules)) {
@@ -41,9 +41,12 @@ function parseRulesIntoSheet (browser, rules, newSheet) {
             cleanedMediaRules.push(cleanedMediaRule)
           }
         }
-        newSheet.addRule(`@media ${rule.media.mediaText}`, cleanedMediaRules.map(
+        let cleanedMediaRulesProps = cleanedMediaRules.map(
           (r) => `${r.rule} {${r.properties}}`
-        ).join('\n'))
+        ).join('\n')
+
+        // newSheet.addRule(`@media ${rule.media.mediaText}`, cleanedMediaRulesProps)
+        newSheet.insertRule(`@media ${rule.media.mediaText} {${cleanedMediaRulesProps}}`, newSheet.cssRules.length)
       }
     } else if ((typeof rule.style) !== 'object') {
       console.error(rule)
@@ -51,7 +54,8 @@ function parseRulesIntoSheet (browser, rules, newSheet) {
       const cleanedRule = getCleanedRule(browser, rule)
       // Add cleaned rule on the new css sheet
       if (cleanedRule !== false) {
-        newSheet.addRule(cleanedRule.rule, cleanedRule.properties)
+        // newSheet.addRule(cleanedRule.rule, cleanedRule.properties)
+        newSheet.insertRule(`${cleanedRule.rule} {${cleanedRule.properties}}`, newSheet.cssRules.length)
       }
     }
   }
