@@ -36,6 +36,10 @@ function parseRulesIntoSheet (browser, rules, newSheet) {
     const rule = rules[ruleId]
     if (rule instanceof window.CSSImportRule) {
       parseRulesIntoSheet(browser, rule.styleSheet.cssRules, newSheet)
+    } else if (window.CSSFontFaceRule && rule instanceof window.CSSFontFaceRule) {
+      if (browserSupport(browser, '@font-face')) {
+        newSheet.insertRule(rule.cssText, newSheet.cssRules.length)
+      }
     } else if (window.CSSKeyframesRule && rule instanceof window.CSSKeyframesRule) {
       // TODO implement keyframesrule rules
     } else if (window.CSSMediaRule && rule instanceof window.CSSMediaRule) {
@@ -73,7 +77,11 @@ function getCleanedRule (browser, rule) {
     // Defined properties are indexed by numbers
     .filter((key) => !isNaN(parseInt(key, 10)))
     // Keep only properties supported by the targeted browser
-    .filter((k) => browserSupport(browser, rule.style[k]))
+    .filter((k) => {
+      const support = browserSupport(browser, rule.style[k])
+      // if (support === undefined) console.log(rule)
+      return support
+    })
     .map((k) => {
       const attribute = rule.style[k]
       return `${attribute}: ${rule.style[attribute]}`
