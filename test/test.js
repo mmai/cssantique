@@ -2,11 +2,12 @@
 
 var expect = window.chai.expect
 var filterStyles = window.CSSAntique.filterStyles
+var resetStyles = window.CSSAntique.resetStyles
 let newStylesElems = []
 
 // *
 describe('filterStyles', function () {
-  // this.timeout(500000)
+  this.timeout(500000)
   before(reset)
   it('should ignore specified stylesheet files', function () {
     let mochacss = window.CSSAntique.findStyleSheet('mocha.css')[0]
@@ -20,6 +21,7 @@ describe('filterStyles', function () {
       expect(dummycss.disabled).to.be.false
       newStylesElems.push(filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}))
       expect(dummycss.disabled).to.be.true
+      newStylesElems.push(style)
       done()
     })
   })
@@ -36,6 +38,7 @@ describe('filterStyles', function () {
     let style = document.createElement('style')
     style.textContent = '@import url("./fixtures/css/dummy2.css")'
     document.head.appendChild(style)
+    newStylesElems.push(style)
     waitForImport(style, function () {
       try {
         let el = document.getElementsByClassName('dummy2')[0]
@@ -51,9 +54,31 @@ describe('filterStyles', function () {
 
   it('should manage @keyframe rules')
 })
-// */
 
-// *
+describe('resetStyles', function () {
+  before(function () {
+    reset()
+  })
+
+  it('should reset styles to initial state', function () {
+    setContent('<div class="dummy2">.</div>')
+    let style = document.createElement('style')
+    style.textContent = ' .dummy2 { flex-direction: column; }'
+    document.head.appendChild(style)
+    newStylesElems.push(style)
+    let el = document.getElementsByClassName('dummy2')[0]
+
+    let nbStyles = document.styleSheets.length
+    expect(window.getComputedStyle(el)['flexDirection']).to.equal('column')
+    filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}})
+    expect(document.styleSheets.length).to.equal(nbStyles + 1)
+    expect(window.getComputedStyle(el)['flexDirection']).to.equal('row')
+    resetStyles()
+    expect(document.styleSheets.length).to.equal(nbStyles)
+    expect(window.getComputedStyle(el)['flexDirection']).to.equal('column')
+  })
+})
+
 describe('filterStyles @media rules', function () {
   // this.timeout(500000)
 
@@ -64,6 +89,10 @@ describe('filterStyles @media rules', function () {
       mediaStyle = style
       done()
     })
+  })
+
+  after(function () {
+    newStylesElems.push(mediaStyle)
   })
 
   beforeEach(function () {

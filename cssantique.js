@@ -1,16 +1,23 @@
 import { browserSupport, browsersDb } from 'browser-data'
 
+let newStylesheets = []
+let initialStylesheets = []
+
 var filterStyles = function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} }) {
   // This new css sheet will replace the originals with rules containing only allowed properties
-  let initialSheets = Object.keys(document.styleSheets).map((k) => document.styleSheets[k])
+  let initialSheets = Object.keys(document.styleSheets)
+    .map((k) => document.styleSheets[k])
+    .filter((s) => !s.disabled)
 
   let newStyle = document.createElement('style')
   document.head.appendChild(newStyle)
+  newStylesheets.push(newStyle) // Keep reference for resetStyles function
 
   for (let sheet of initialSheets) {
     if (!isIgnoredSheet(options.ignore, sheet)) {
       parseRulesIntoSheet(options.browser, sheet.cssRules, newStyle.sheet)
       sheet.disabled = true // Disable the original css sheet
+      initialStylesheets.push(sheet) // Keep reference for resetStyles function
     }
   }
   return newStyle
@@ -81,6 +88,13 @@ function getCleanedRule (browser, rule) {
   return false
 }
 
+var resetStyles = function resetStyles () {
+  newStylesheets.map(function (e) { e.remove() })
+  newStylesheets = []
+  initialStylesheets.map(function (e) { e.disabled = false })
+  initialStylesheets = []
+}
+
 var findStyleSheet = function findStyleSheet (filename) {
   let stylesheets = window.document.styleSheets
 
@@ -89,4 +103,4 @@ var findStyleSheet = function findStyleSheet (filename) {
     .filter((s) => s.href !== null && s.href.indexOf(filename) > -1)
 }
 
-module.exports = { browsersDb, filterStyles, findStyleSheet}
+module.exports = { browsersDb, filterStyles, resetStyles, findStyleSheet}
