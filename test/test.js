@@ -22,6 +22,18 @@ describe('filterStyles', function () {
       newStylesElems.push(filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}))
       expect(dummycss.disabled).to.be.true
       newStylesElems.push(style)
+
+      done()
+    })
+  })
+
+  it('should read other domain external stylesheets', function (done) {
+    loadStylesheet('https://fonts.googleapis.com/css?family=Roboto:300,400,500,700', function (style) {
+      let googlecss = window.CSSAntique.findStyleSheet('googleapis')[0]
+      expect(googlecss.disabled).to.be.false
+      newStylesElems.push(filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}))
+      expect(googlecss.disabled).to.be.true
+      newStylesElems.push(style)
       done()
     })
   })

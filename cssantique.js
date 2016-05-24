@@ -4,6 +4,8 @@ let newStylesheets = []
 let initialStylesheets = []
 
 var filterStyles = function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} }) {
+  convertRemoteStyles()
+
   // This new css sheet will replace the originals with rules containing only allowed properties
   let initialSheets = Object.keys(document.styleSheets)
     .map((k) => document.styleSheets[k])
@@ -21,6 +23,54 @@ var filterStyles = function filterStyles (options = { ignore: [], browser: {name
     }
   }
   return newStyle
+}
+
+/**
+ * convertRemoteStyles
+ * load remote styles with CORS
+ *
+ */
+function convertRemoteStyles () {
+  Object.keys(document.styleSheets)
+    .map((k) => document.styleSheets[k])
+    .filter((s) => !s.disabled && getDomain(s.href) !== window.location.hostname)
+    .map(function (s) {
+      loadCSSCors(s.href)
+      s.disabled = true
+    })
+
+  function getDomain (uri) {
+    var l = document.createElement('a')
+    l.href = uri
+    return l.hostname
+  }
+}
+
+function loadCSSCors (stylesheet_uri) {
+  var _xhr = window.XMLHttpRequest
+  var has_cred = false
+  try {has_cred = _xhr && ('withCredentials' in (new _xhr()));} catch(e) {}
+  if (!has_cred) {
+    console.error('CORS not supported')
+    return
+  }
+  var xhr = new _xhr()
+  xhr.open('GET', stylesheet_uri)
+  xhr.onload = function () {
+    xhr.onload = xhr.onerror = null
+    if (xhr.status < 200 || xhr.status >= 300) {
+      console.error('style failed to load: ' + stylesheet_uri)
+    } else {
+      var style_tag = document.createElement('style')
+      style_tag.appendChild(document.createTextNode(xhr.responseText))
+      document.head.appendChild(style_tag)
+    }
+    xhr.onerror = function () {
+      xhr.onload = xhr.onerror = null
+      console.error('XHR CORS CSS fail:' + styleURI)
+    }
+    xhr.send()
+  }
 }
 
 function isIgnoredSheet (ignore, sheet) {
@@ -103,12 +153,12 @@ var resetStyles = function resetStyles () {
   initialStylesheets = []
 }
 
-var findStyleSheet = function findStyleSheet (filename) {
+var findStyleSheet = function findStyleSheet (search) {
   let stylesheets = window.document.styleSheets
 
   return Object.keys(stylesheets)
     .map((k) => stylesheets[k])
-    .filter((s) => s.href !== null && s.href.indexOf(filename) > -1)
+    .filter((s) => s.href !== null && s.href.indexOf(search) > -1)
 }
 
 module.exports = { browsersDb, filterStyles, resetStyles, findStyleSheet}
