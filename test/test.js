@@ -116,7 +116,7 @@ describe('filterStyles @media rules', function () {
   it('should check @media support', function () {
     let el = document.getElementsByClassName('mediarules')[0]
     expect(window.getComputedStyle(el)['font-size']).to.equal('24px')
-    newStylesElems.push(filterStyles({ignore: ['mocha.css'], browser: {name: 'IEMobile', version: '9'}}))
+    newStylesElems.push(filterStyles({ignore: ['mocha.css'], browser: {name: 'Opera', version: '8'}}))
     expect(window.getComputedStyle(el)['font-size']).to.equal('10px')
   })
 

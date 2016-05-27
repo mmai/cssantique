@@ -1,28 +1,40 @@
 import { browserSupport, browsersDb } from 'browser-data'
+var fp = require('lodash/fp')
 
 let newStylesheets = []
 let initialStylesheets = []
 
+/**
+ * filterStyles
+ *
+ * @param options = { ignore: [], browser: {name: 'Firefox', version: '3'} }
+ * @return {DOMelement} style DOM element
+ */
 var filterStyles = function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} }) {
   convertRemoteStyles()
+  let currentBrowserSupport = fp.curry(browserSupport)(options.browser)
+  let initialSheets = fp.filter((s) => !s.disabled, document.styleSheets)
 
   // This new css sheet will replace the originals with rules containing only allowed properties
-  let initialSheets = Object.keys(document.styleSheets)
-    .map((k) => document.styleSheets[k])
-    .filter((s) => !s.disabled)
-
   let newStyle = document.createElement('style')
   document.head.appendChild(newStyle)
   newStylesheets.push(newStyle) // Keep reference for resetStyles function
 
   for (let sheet of initialSheets) {
     if (!isIgnoredSheet(options.ignore, sheet)) {
-      parseRulesIntoSheet(options.browser, sheet.cssRules, newStyle.sheet)
+      parseRulesIntoSheet(currentBrowserSupport, sheet.cssRules, newStyle.sheet)
       sheet.disabled = true // Disable the original css sheet
       initialStylesheets.push(sheet) // Keep reference for resetStyles function
     }
   }
   return newStyle
+}
+
+function parseRulesIntoSheet (currentBrowserSupport, rules, newSheet) {
+  var toInsert = getParsedRules(currentBrowserSupport, rules)
+  toInsert.map((rule) => {
+    newSheet.insertRule(rule, newSheet.cssRules.length)
+  })
 }
 
 /**
@@ -81,69 +93,70 @@ function isIgnoredSheet (ignore, sheet) {
   return false
 }
 
-function parseRulesIntoSheet (browser, rules, newSheet) {
-  for (let ruleId of Object.keys(rules)) {
-    const rule = rules[ruleId]
+function getParsedRules (currentBrowserSupport, rules) {
+  var parsedRules = []
+  fp.each((rule) => {
     if (rule instanceof window.CSSImportRule) {
-      parseRulesIntoSheet(browser, rule.styleSheet.cssRules, newSheet)
+      parsedRules = fp.concat(parsedRules, getParsedRules(currentBrowserSupport, rule.styleSheet.cssRules))
     } else if (window.CSSFontFaceRule && rule instanceof window.CSSFontFaceRule) {
-      if (browserSupport(browser, '@font-face')) {
-        newSheet.insertRule(rule.cssText, newSheet.cssRules.length)
+      if (currentBrowserSupport('@font-face')) {
+        parsedRules.push(rule.cssText)
       }
     } else if (window.CSSKeyframesRule && rule instanceof window.CSSKeyframesRule) {
       // TODO implement keyframesrule rules
     } else if (window.CSSMediaRule && rule instanceof window.CSSMediaRule) {
-      if (browserSupport(browser, '@media')) {
-        let cleanedMediaRules = []
-        for (let mediaRuleId of Object.keys(rule.cssRules)) {
-          const mediaRule = rule.cssRules[mediaRuleId]
-          const cleanedMediaRule = getCleanedRule(browser, mediaRule)
-          if (cleanedMediaRule !== false) {
-            cleanedMediaRules.push(cleanedMediaRule)
-          }
-        }
-        let cleanedMediaRulesProps = cleanedMediaRules.map(
-          (r) => `${r.rule} {${r.properties}}`
-        ).join('\n')
-
-        // newSheet.addRule(`@media ${rule.media.mediaText}`, cleanedMediaRulesProps)
-        newSheet.insertRule(`@media ${rule.media.mediaText} {${cleanedMediaRulesProps}}`, newSheet.cssRules.length)
+      if (currentBrowserSupport('@media')) {
+        parsedRules.push(makeCleanMediaRule(currentBrowserSupport, rule))
       }
     } else if ((typeof rule.style) !== 'object') {
       console.error(rule)
     } else {
-      const cleanedRule = getCleanedRule(browser, rule)
-      // Add cleaned rule on the new css sheet
+      const cleanedRule = getCleanedRule(currentBrowserSupport, rule)
       if (cleanedRule !== false) {
-        // newSheet.addRule(cleanedRule.rule, cleanedRule.properties)
-        newSheet.insertRule(`${cleanedRule.rule} {${cleanedRule.properties}}`, newSheet.cssRules.length)
+        parsedRules.push(`${cleanedRule.rule} {${cleanedRule.properties}}`)
       }
     }
-  }
+  }, rules)
+  return parsedRules
 }
 
-function getCleanedRule (browser, rule) {
-  const knownProperties = Object.keys(rule.style)
-    // Defined properties are indexed by numbers
-    .filter((key) => !isNaN(parseInt(key, 10)))
-    // Keep only properties supported by the targeted browser
-    .filter((k) => {
-      const support = browserSupport(browser, rule.style[k])
-      // if (support === undefined) console.log(rule)
-      return support
-    })
-    .map((k) => {
-      const attribute = rule.style[k]
-      return `${attribute}: ${rule.style[attribute]}`
-    })
-
-  if (knownProperties.length > 0) {
-    return {
-      rule: rule.selectorText,
-      properties: knownProperties.join('; ')
+function makeCleanMediaRule (currentBrowserSupport, cssMediaRule) {
+  let cleanedMediaRules = []
+  fp.each((mediaRule) => {
+    const cleanedMediaRule = getCleanedRule(currentBrowserSupport, mediaRule)
+    if (cleanedMediaRule !== false) {
+      cleanedMediaRules.push(cleanedMediaRule)
     }
+  }, cssMediaRule.cssRules)
+
+  let cleanedMediaRulesProps = cleanedMediaRules.map(
+    (r) => `${r.rule} {${r.properties}}`
+  ).join('\n')
+
+  return `@media ${cssMediaRule.media.mediaText} {${cleanedMediaRulesProps}}`
+}
+
+function getCleanedRule (currentBrowserSupport, rule) {
+  var attributes = getAttributes(rule.style.cssText)
+  var segregatedAttributes = fp.groupBy(currentBrowserSupport, attributes) // -> {true:[...], false:[...], undefined: [...]}
+
+  if (fp.has('true', segregatedAttributes)) {
+    var properties = segregatedAttributes.true.map(
+      (attribute) => `${attribute}: ${rule.style[attribute]}`
+    ).join('; ')
+    return { rule: rule.selectorText, properties}
   }
   return false
+}
+
+function getAttributes (cssText) {
+  // Remove properties content in order to bypass delimiter characters conflicts
+  cssText = cssText.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '')
+  var begin = cssText.indexOf('{') + 1
+  var end = cssText.indexOf('}')
+  return cssText.slice(begin, end).split(';')
+    .map((dec) => dec.split(':')[0].trim())
+    .filter((attr) => attr !== '')
 }
 
 var resetStyles = function resetStyles () {
