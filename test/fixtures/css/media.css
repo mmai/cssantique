@@ -7,6 +7,7 @@
 @media (min-width: 5px) {
   .mediarules {
     font-size: 24px;
+    flex-direction: column;
   }
 }
 

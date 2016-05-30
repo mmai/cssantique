@@ -75,10 +75,11 @@ var CSSAntique =
 	  }, document.styleSheets);
 	
 	  // This new css sheet will replace the originals with rules containing only allowed properties
-	  var newStyle = document.createElement('style');
-	  document.head.appendChild(newStyle);
-	  newStylesheets.push(newStyle); // Keep reference for resetStyles function
+	  var styleElement = document.createElement('style');
+	  document.head.appendChild(styleElement);
+	  newStylesheets.push(styleElement); // Keep reference for resetStyles function
 	
+	  var discarded = [];
 	  var _iteratorNormalCompletion = true;
 	  var _didIteratorError = false;
 	  var _iteratorError = undefined;
@@ -88,7 +89,13 @@ var CSSAntique =
 	      var sheet = _step.value;
 	
 	      if (!isIgnoredSheet(options.ignore, sheet)) {
-	        parseRulesIntoSheet(currentBrowserSupport, sheet.cssRules, newStyle.sheet);
+	        var _getParsedRules = getParsedRules(currentBrowserSupport, sheet.cssRules);
+	
+	        var parsed = _getParsedRules.parsed;
+	        var ignored = _getParsedRules.ignored;
+	
+	        discarded = fp.uniq(fp.concat(discarded, ignored));
+	        updateSheet(parsed, styleElement.sheet);
 	        sheet.disabled = true; // Disable the original css sheet
 	        initialStylesheets.push(sheet); // Keep reference for resetStyles function
 	      }
@@ -108,12 +115,17 @@ var CSSAntique =
 	    }
 	  }
 	
-	  return newStyle;
+	  return { styleElement: styleElement, discarded: discarded };
 	};
 	
-	function parseRulesIntoSheet(currentBrowserSupport, rules, newSheet) {
-	  var toInsert = getParsedRules(currentBrowserSupport, rules);
-	  toInsert.map(function (rule) {
+	/**
+	 * updateSheet
+	 *
+	 * @param newRules
+	 * @param newSheet
+	 */
+	function updateSheet(newRules, newSheet) {
+	  newRules.map(function (rule) {
 	    newSheet.insertRule(rule, newSheet.cssRules.length);
 	  });
 	}
@@ -138,6 +150,102 @@ var CSSAntique =
 	    l.href = uri;
 	    return l.hostname;
 	  }
+	}
+	
+	function isIgnoredSheet(ignore, sheet) {
+	  if (sheet.href) {
+	    var filename = sheet.href.slice(sheet.href.lastIndexOf('/') + 1);
+	    return ignore.indexOf(filename) !== -1;
+	  }
+	  return false;
+	}
+	
+	function getParsedRules(currentBrowserSupport, rules) {
+	  var parsedRules = { parsed: [], ignored: [] };
+	  fp.each(function (rule) {
+	    if (rule instanceof window.CSSImportRule) {
+	      var cssParsedRules = getParsedRules(currentBrowserSupport, rule.styleSheet.cssRules);
+	      parsedRules = {
+	        parsed: fp.concat(parsedRules.parsed, cssParsedRules.parsed),
+	        ignored: fp.concat(parsedRules.ignored, cssParsedRules.ignored)
+	      };
+	    } else if (window.CSSFontFaceRule && rule instanceof window.CSSFontFaceRule) {
+	      if (currentBrowserSupport('@font-face')) {
+	        parsedRules.parsed.push(rule.cssText);
+	      } else {
+	        parsedRules.ignored.push('@font-face');
+	      }
+	    } else if (window.CSSKeyframesRule && rule instanceof window.CSSKeyframesRule) {
+	      // TODO implement keyframesrule rules
+	    } else if (window.CSSMediaRule && rule instanceof window.CSSMediaRule) {
+	        if (currentBrowserSupport('@media')) {
+	          var cleanedMediaRule = getCleanedMediaRule(currentBrowserSupport, rule);
+	          parsedRules.ignored = fp.concat(parsedRules.ignored, cleanedMediaRule.ignored);
+	          parsedRules.parsed.push(cleanedMediaRule.mediaRule);
+	        } else {
+	          parsedRules.ignored.push('@media');
+	        }
+	      } else if (_typeof(rule.style) !== 'object') {
+	        console.error(rule);
+	      } else {
+	        var cleanedRule = getCleanedRule(currentBrowserSupport, rule);
+	        parsedRules.ignored = fp.concat(parsedRules.ignored, cleanedRule.ignored);
+	        if (fp.has('rule', cleanedRule)) {
+	          parsedRules.parsed.push(cleanedRule.rule + ' {' + cleanedRule.properties + '}');
+	        }
+	      }
+	  }, rules);
+	  return parsedRules;
+	}
+	
+	function getCleanedMediaRule(currentBrowserSupport, cssMediaRule) {
+	  var cleanedMediaRules = [];
+	  var ignoredRules = [];
+	  fp.each(function (mediaRule) {
+	    var cleanedMediaRule = getCleanedRule(currentBrowserSupport, mediaRule);
+	    if (fp.has('rule', cleanedMediaRule)) {
+	      cleanedMediaRules.push(cleanedMediaRule);
+	    }
+	    ignoredRules = fp.concat(ignoredRules, cleanedMediaRule.ignored);
+	  }, cssMediaRule.cssRules);
+	
+	  var cleanedMediaRulesProps = cleanedMediaRules.map(function (r) {
+	    return r.rule + ' {' + r.properties + '}';
+	  }).join('\n');
+	
+	  return {
+	    mediaRule: '@media ' + cssMediaRule.media.mediaText + ' {' + cleanedMediaRulesProps + '}',
+	    ignored: fp.uniq(ignoredRules)
+	  };
+	}
+	
+	function getCleanedRule(currentBrowserSupport, rule) {
+	  var cleanedRule = { ignored: [] };
+	  var attributes = getAttributes(rule.style.cssText);
+	  var segregatedAttributes = fp.groupBy(currentBrowserSupport, attributes); // -> {true:[...], false:[...], undefined: [...]}
+	
+	  if (fp.has('true', segregatedAttributes)) {
+	    cleanedRule.rule = rule.selectorText;
+	    cleanedRule.properties = segregatedAttributes.true.map(function (attribute) {
+	      return attribute + ': ' + rule.style[attribute];
+	    }).join('; ');
+	  }
+	  if (fp.has('false', segregatedAttributes)) {
+	    cleanedRule.ignored = segregatedAttributes.false;
+	  }
+	  return cleanedRule;
+	}
+	
+	function getAttributes(cssText) {
+	  // Remove properties content in order to bypass delimiter characters conflicts
+	  cssText = cssText.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+	  var begin = cssText.indexOf('{') + 1;
+	  var end = cssText.indexOf('}');
+	  return cssText.slice(begin, end).split(';').map(function (dec) {
+	    return dec.split(':')[0].trim();
+	  }).filter(function (attr) {
+	    return attr !== '';
+	  });
 	}
 	
 	function loadCSSCors(stylesheet_uri) {
@@ -167,82 +275,6 @@ var CSSAntique =
 	    };
 	    xhr.send();
 	  };
-	}
-	
-	function isIgnoredSheet(ignore, sheet) {
-	  if (sheet.href) {
-	    var filename = sheet.href.slice(sheet.href.lastIndexOf('/') + 1);
-	    return ignore.indexOf(filename) !== -1;
-	  }
-	  return false;
-	}
-	
-	function getParsedRules(currentBrowserSupport, rules) {
-	  var parsedRules = [];
-	  fp.each(function (rule) {
-	    if (rule instanceof window.CSSImportRule) {
-	      parsedRules = fp.concat(parsedRules, getParsedRules(currentBrowserSupport, rule.styleSheet.cssRules));
-	    } else if (window.CSSFontFaceRule && rule instanceof window.CSSFontFaceRule) {
-	      if (currentBrowserSupport('@font-face')) {
-	        parsedRules.push(rule.cssText);
-	      }
-	    } else if (window.CSSKeyframesRule && rule instanceof window.CSSKeyframesRule) {
-	      // TODO implement keyframesrule rules
-	    } else if (window.CSSMediaRule && rule instanceof window.CSSMediaRule) {
-	        if (currentBrowserSupport('@media')) {
-	          parsedRules.push(makeCleanMediaRule(currentBrowserSupport, rule));
-	        }
-	      } else if (_typeof(rule.style) !== 'object') {
-	        console.error(rule);
-	      } else {
-	        var cleanedRule = getCleanedRule(currentBrowserSupport, rule);
-	        if (cleanedRule !== false) {
-	          parsedRules.push(cleanedRule.rule + ' {' + cleanedRule.properties + '}');
-	        }
-	      }
-	  }, rules);
-	  return parsedRules;
-	}
-	
-	function makeCleanMediaRule(currentBrowserSupport, cssMediaRule) {
-	  var cleanedMediaRules = [];
-	  fp.each(function (mediaRule) {
-	    var cleanedMediaRule = getCleanedRule(currentBrowserSupport, mediaRule);
-	    if (cleanedMediaRule !== false) {
-	      cleanedMediaRules.push(cleanedMediaRule);
-	    }
-	  }, cssMediaRule.cssRules);
-	
-	  var cleanedMediaRulesProps = cleanedMediaRules.map(function (r) {
-	    return r.rule + ' {' + r.properties + '}';
-	  }).join('\n');
-	
-	  return '@media ' + cssMediaRule.media.mediaText + ' {' + cleanedMediaRulesProps + '}';
-	}
-	
-	function getCleanedRule(currentBrowserSupport, rule) {
-	  var attributes = getAttributes(rule.style.cssText);
-	  var segregatedAttributes = fp.groupBy(currentBrowserSupport, attributes); // -> {true:[...], false:[...], undefined: [...]}
-	
-	  if (fp.has('true', segregatedAttributes)) {
-	    var properties = segregatedAttributes.true.map(function (attribute) {
-	      return attribute + ': ' + rule.style[attribute];
-	    }).join('; ');
-	    return { rule: rule.selectorText, properties: properties };
-	  }
-	  return false;
-	}
-	
-	function getAttributes(cssText) {
-	  // Remove properties content in order to bypass delimiter characters conflicts
-	  cssText = cssText.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
-	  var begin = cssText.indexOf('{') + 1;
-	  var end = cssText.indexOf('}');
-	  return cssText.slice(begin, end).split(';').map(function (dec) {
-	    return dec.split(':')[0].trim();
-	  }).filter(function (attr) {
-	    return attr !== '';
-	  });
 	}
 	
 	var resetStyles = function resetStyles() {

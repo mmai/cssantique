@@ -16,23 +16,31 @@ var filterStyles = function filterStyles (options = { ignore: [], browser: {name
   let initialSheets = fp.filter((s) => !s.disabled, document.styleSheets)
 
   // This new css sheet will replace the originals with rules containing only allowed properties
-  let newStyle = document.createElement('style')
-  document.head.appendChild(newStyle)
-  newStylesheets.push(newStyle) // Keep reference for resetStyles function
+  let styleElement = document.createElement('style')
+  document.head.appendChild(styleElement)
+  newStylesheets.push(styleElement) // Keep reference for resetStyles function
 
+  let discarded = []
   for (let sheet of initialSheets) {
     if (!isIgnoredSheet(options.ignore, sheet)) {
-      parseRulesIntoSheet(currentBrowserSupport, sheet.cssRules, newStyle.sheet)
+      let {parsed, ignored} = getParsedRules(currentBrowserSupport, sheet.cssRules)
+      discarded = fp.uniq(fp.concat(discarded, ignored))
+      updateSheet(parsed, styleElement.sheet)
       sheet.disabled = true // Disable the original css sheet
       initialStylesheets.push(sheet) // Keep reference for resetStyles function
     }
   }
-  return newStyle
+  return {styleElement, discarded}
 }
 
-function parseRulesIntoSheet (currentBrowserSupport, rules, newSheet) {
-  var toInsert = getParsedRules(currentBrowserSupport, rules)
-  toInsert.map((rule) => {
+/**
+ * updateSheet
+ *
+ * @param newRules
+ * @param newSheet
+ */
+function updateSheet (newRules, newSheet) {
+  newRules.map((rule) => {
     newSheet.insertRule(rule, newSheet.cssRules.length)
   })
 }
@@ -56,6 +64,100 @@ function convertRemoteStyles () {
     l.href = uri
     return l.hostname
   }
+}
+
+function isIgnoredSheet (ignore, sheet) {
+  if (sheet.href) {
+    let filename = sheet.href.slice(sheet.href.lastIndexOf('/') + 1)
+    return ignore.indexOf(filename) !== -1
+  }
+  return false
+}
+
+function getParsedRules (currentBrowserSupport, rules) {
+  var parsedRules = {parsed: [], ignored: []}
+  fp.each((rule) => {
+    if (rule instanceof window.CSSImportRule) {
+      let cssParsedRules = getParsedRules(currentBrowserSupport, rule.styleSheet.cssRules)
+      parsedRules = {
+        parsed: fp.concat(parsedRules.parsed, cssParsedRules.parsed),
+        ignored: fp.concat(parsedRules.ignored, cssParsedRules.ignored)
+      }
+    } else if (window.CSSFontFaceRule && rule instanceof window.CSSFontFaceRule) {
+      if (currentBrowserSupport('@font-face')) {
+        parsedRules.parsed.push(rule.cssText)
+      } else {
+        parsedRules.ignored.push('@font-face')
+      }
+    } else if (window.CSSKeyframesRule && rule instanceof window.CSSKeyframesRule) {
+      // TODO implement keyframesrule rules
+    } else if (window.CSSMediaRule && rule instanceof window.CSSMediaRule) {
+      if (currentBrowserSupport('@media')) {
+        const cleanedMediaRule = getCleanedMediaRule(currentBrowserSupport, rule)
+        parsedRules.ignored = fp.concat(parsedRules.ignored, cleanedMediaRule.ignored)
+        parsedRules.parsed.push(cleanedMediaRule.mediaRule)
+      } else {
+        parsedRules.ignored.push('@media')
+      }
+    } else if ((typeof rule.style) !== 'object') {
+      console.error(rule)
+    } else {
+      const cleanedRule = getCleanedRule(currentBrowserSupport, rule)
+      parsedRules.ignored = fp.concat(parsedRules.ignored, cleanedRule.ignored)
+      if (fp.has('rule', cleanedRule)) {
+        parsedRules.parsed.push(`${cleanedRule.rule} {${cleanedRule.properties}}`)
+      }
+    }
+  }, rules)
+  return parsedRules
+}
+
+function getCleanedMediaRule (currentBrowserSupport, cssMediaRule) {
+  let cleanedMediaRules = []
+  let ignoredRules = []
+  fp.each((mediaRule) => {
+    const cleanedMediaRule = getCleanedRule(currentBrowserSupport, mediaRule)
+    if (fp.has('rule', cleanedMediaRule)) {
+      cleanedMediaRules.push(cleanedMediaRule)
+    }
+    ignoredRules = fp.concat(ignoredRules, cleanedMediaRule.ignored)
+  }, cssMediaRule.cssRules)
+
+  let cleanedMediaRulesProps = cleanedMediaRules.map(
+    (r) => `${r.rule} {${r.properties}}`
+  ).join('\n')
+
+  return {
+    mediaRule: `@media ${cssMediaRule.media.mediaText} {${cleanedMediaRulesProps}}`,
+    ignored: fp.uniq(ignoredRules)
+  }
+}
+
+function getCleanedRule (currentBrowserSupport, rule) {
+  var cleanedRule = {ignored: []}
+  var attributes = getAttributes(rule.style.cssText)
+  var segregatedAttributes = fp.groupBy(currentBrowserSupport, attributes) // -> {true:[...], false:[...], undefined: [...]}
+
+  if (fp.has('true', segregatedAttributes)) {
+    cleanedRule.rule = rule.selectorText
+    cleanedRule.properties = segregatedAttributes.true.map(
+      (attribute) => `${attribute}: ${rule.style[attribute]}`
+    ).join('; ')
+  }
+  if (fp.has('false', segregatedAttributes)) {
+    cleanedRule.ignored = segregatedAttributes.false
+  }
+  return cleanedRule
+}
+
+function getAttributes (cssText) {
+  // Remove properties content in order to bypass delimiter characters conflicts
+  cssText = cssText.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '')
+  var begin = cssText.indexOf('{') + 1
+  var end = cssText.indexOf('}')
+  return cssText.slice(begin, end).split(';')
+    .map((dec) => dec.split(':')[0].trim())
+    .filter((attr) => attr !== '')
 }
 
 function loadCSSCors (stylesheet_uri) {
@@ -83,80 +185,6 @@ function loadCSSCors (stylesheet_uri) {
     }
     xhr.send()
   }
-}
-
-function isIgnoredSheet (ignore, sheet) {
-  if (sheet.href) {
-    let filename = sheet.href.slice(sheet.href.lastIndexOf('/') + 1)
-    return ignore.indexOf(filename) !== -1
-  }
-  return false
-}
-
-function getParsedRules (currentBrowserSupport, rules) {
-  var parsedRules = []
-  fp.each((rule) => {
-    if (rule instanceof window.CSSImportRule) {
-      parsedRules = fp.concat(parsedRules, getParsedRules(currentBrowserSupport, rule.styleSheet.cssRules))
-    } else if (window.CSSFontFaceRule && rule instanceof window.CSSFontFaceRule) {
-      if (currentBrowserSupport('@font-face')) {
-        parsedRules.push(rule.cssText)
-      }
-    } else if (window.CSSKeyframesRule && rule instanceof window.CSSKeyframesRule) {
-      // TODO implement keyframesrule rules
-    } else if (window.CSSMediaRule && rule instanceof window.CSSMediaRule) {
-      if (currentBrowserSupport('@media')) {
-        parsedRules.push(makeCleanMediaRule(currentBrowserSupport, rule))
-      }
-    } else if ((typeof rule.style) !== 'object') {
-      console.error(rule)
-    } else {
-      const cleanedRule = getCleanedRule(currentBrowserSupport, rule)
-      if (cleanedRule !== false) {
-        parsedRules.push(`${cleanedRule.rule} {${cleanedRule.properties}}`)
-      }
-    }
-  }, rules)
-  return parsedRules
-}
-
-function makeCleanMediaRule (currentBrowserSupport, cssMediaRule) {
-  let cleanedMediaRules = []
-  fp.each((mediaRule) => {
-    const cleanedMediaRule = getCleanedRule(currentBrowserSupport, mediaRule)
-    if (cleanedMediaRule !== false) {
-      cleanedMediaRules.push(cleanedMediaRule)
-    }
-  }, cssMediaRule.cssRules)
-
-  let cleanedMediaRulesProps = cleanedMediaRules.map(
-    (r) => `${r.rule} {${r.properties}}`
-  ).join('\n')
-
-  return `@media ${cssMediaRule.media.mediaText} {${cleanedMediaRulesProps}}`
-}
-
-function getCleanedRule (currentBrowserSupport, rule) {
-  var attributes = getAttributes(rule.style.cssText)
-  var segregatedAttributes = fp.groupBy(currentBrowserSupport, attributes) // -> {true:[...], false:[...], undefined: [...]}
-
-  if (fp.has('true', segregatedAttributes)) {
-    var properties = segregatedAttributes.true.map(
-      (attribute) => `${attribute}: ${rule.style[attribute]}`
-    ).join('; ')
-    return { rule: rule.selectorText, properties}
-  }
-  return false
-}
-
-function getAttributes (cssText) {
-  // Remove properties content in order to bypass delimiter characters conflicts
-  cssText = cssText.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '')
-  var begin = cssText.indexOf('{') + 1
-  var end = cssText.indexOf('}')
-  return cssText.slice(begin, end).split(';')
-    .map((dec) => dec.split(':')[0].trim())
-    .filter((attr) => attr !== '')
 }
 
 var resetStyles = function resetStyles () {
