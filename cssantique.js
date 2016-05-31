@@ -11,6 +11,7 @@ let initialStylesheets = []
  * @return {DOMelement} style DOM element
  */
 var filterStyles = function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} }) {
+  options.ignore = options.ignore || []
   convertRemoteStyles()
   let currentBrowserSupport = fp.curry(browserSupport)(options.browser)
   let initialSheets = fp.filter((s) => !s.disabled, document.styleSheets)
