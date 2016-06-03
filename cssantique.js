@@ -1,4 +1,4 @@
-import { browserSupport, browsersDb } from 'browser-data'
+import { browserSupport, browsers } from 'browser-data'
 var fp = require('lodash/fp')
 
 let newStylesheets = []
@@ -203,4 +203,4 @@ var findStyleSheet = function findStyleSheet (search) {
     .filter((s) => s.href !== null && s.href.indexOf(search) > -1)
 }
 
-module.exports = { browsersDb, filterStyles, resetStyles, findStyleSheet}
+module.exports = { browsers, filterStyles, resetStyles, findStyleSheet}
