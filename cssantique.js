@@ -8,30 +8,32 @@ let initialStylesheets = []
  * filterStyles
  *
  * @param options = { ignore: [], browser: {name: 'Firefox', version: '3'} }
- * @return {DOMelement} style DOM element
+ * @param {function} callback with object parameter {styleElement, discarded} (DOMelement, Array of Strings)
  */
-var filterStyles = function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} }) {
+var filterStyles = function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} } , callback) {
   options.ignore = options.ignore || []
-  convertRemoteStyles()
-  let currentBrowserSupport = fp.curry(browserSupport)(options.browser)
-  let initialSheets = fp.filter((s) => !s.disabled, document.styleSheets)
+  convertRemoteStyles().then((stylesRemote) => {
+    let currentBrowserSupport = fp.curry(browserSupport)(options.browser)
+    let initialSheets = fp.filter((s) => !s.disabled, document.styleSheets)
 
-  // This new css sheet will replace the originals with rules containing only allowed properties
-  let styleElement = document.createElement('style')
-  document.head.appendChild(styleElement)
-  newStylesheets.push(styleElement) // Keep reference for resetStyles function
+    // This new css sheet will replace the originals with rules containing only allowed properties
+    let styleElement = document.createElement('style')
+    document.head.appendChild(styleElement)
+    newStylesheets.push(styleElement) // Keep reference for resetStyles function
+    Array.prototype.push.apply(newStylesheets, stylesRemote)
 
-  let discarded = []
-  for (let sheet of initialSheets) {
-    if (!isIgnoredSheet(options.ignore, sheet)) {
-      let {parsed, ignored} = getParsedRules(currentBrowserSupport, sheet.cssRules)
-      discarded = fp.uniq(fp.concat(discarded, ignored))
-      updateSheet(parsed, styleElement.sheet)
-      sheet.disabled = true // Disable the original css sheet
-      initialStylesheets.push(sheet) // Keep reference for resetStyles function
+    let discarded = []
+    for (let sheet of initialSheets) {
+      if (!isIgnoredSheet(options.ignore, sheet)) {
+        let {parsed, ignored} = getParsedRules(currentBrowserSupport, sheet.cssRules)
+        discarded = fp.uniq(fp.concat(discarded, ignored))
+        updateSheet(parsed, styleElement.sheet)
+        sheet.disabled = true // Disable the original css sheet
+        initialStylesheets.push(sheet) // Keep reference for resetStyles function
+      }
     }
-  }
-  return {styleElement, discarded}
+    callback({styleElement, discarded})
+  })
 }
 
 /**
@@ -52,13 +54,22 @@ function updateSheet (newRules, newSheet) {
  *
  */
 function convertRemoteStyles () {
-  Object.keys(document.styleSheets)
+  let promises = Object.keys(document.styleSheets)
     .map((k) => document.styleSheets[k])
     .filter((s) => !s.disabled && getDomain(s.href) !== window.location.hostname)
-    .map(function (s) {
-      loadCSSCors(s.href)
-      s.disabled = true
+    .map((s) => {
+      return loadCSSCors(s.href)
+        .then((style_tag) => {
+          s.disabled = true
+          return style_tag
+        })
+        .catch((e) => {
+          console.log('could not convert remote style : ', e)
+          reject(e)
+        })
     })
+
+  return Promise.all(promises)
 
   function getDomain (uri) {
     var l = document.createElement('a')
@@ -162,30 +173,33 @@ function getAttributes (cssText) {
 }
 
 function loadCSSCors (stylesheet_uri) {
-  var _xhr = window.XMLHttpRequest
-  var has_cred = false
-  try {has_cred = _xhr && ('withCredentials' in (new _xhr()));} catch(e) {}
-  if (!has_cred) {
-    console.error('CORS not supported')
-    return
-  }
-  var xhr = new _xhr()
-  xhr.open('GET', stylesheet_uri)
-  xhr.onload = function () {
-    xhr.onload = xhr.onerror = null
-    if (xhr.status < 200 || xhr.status >= 300) {
-      console.error('style failed to load: ' + stylesheet_uri)
-    } else {
-      var style_tag = document.createElement('style')
-      style_tag.appendChild(document.createTextNode(xhr.responseText))
-      document.head.appendChild(style_tag)
+  return new Promise((resolve, reject) => {
+    var _xhr = window.XMLHttpRequest
+    var has_cred = false
+    try {has_cred = _xhr && ('withCredentials' in (new _xhr()));} catch(e) {}
+    if (!has_cred) {
+      reject('CORS not supported')
+    }
+    var xhr = new _xhr()
+    xhr.open('GET', stylesheet_uri)
+    xhr.onload = function () {
+      xhr.onload = xhr.onerror = null
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject('style failed to load: ' + stylesheet_uri)
+      } else {
+        var style_tag = document.createElement('style')
+        style_tag.appendChild(document.createTextNode(xhr.responseText))
+        // console.log(JSON.stringify(xhr.responseText))
+        document.head.appendChild(style_tag)
+        resolve(style_tag)
+      }
     }
     xhr.onerror = function () {
       xhr.onload = xhr.onerror = null
-      console.error('XHR CORS CSS fail:' + styleURI)
+      reject('XHR CORS CSS fail:' + styleURI)
     }
     xhr.send()
-  }
+  })
 }
 
 var resetStyles = function resetStyles () {

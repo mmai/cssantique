@@ -20,8 +20,9 @@ npm install cssantique
       var params = {
         browser: {name: 'Firefox', version: '3'}
       }
-      var res = CSSAntique.filterStyles(params) 
-      console.log(res.discarded)
+      CSSAntique.filterStyles(params, function(res){
+        console.log(res.discarded)
+      }) 
     </script>
 ```
 
@@ -30,7 +31,9 @@ npm install cssantique
 ```javascript
 import { filterStyles } from 'cssantique'
 
-let res = filterStyles({ browser: {name: 'Firefox', version: '3'} })
+filterStyles({ browser: {name: 'Firefox', version: '3'} }, function(res){
+...
+})
 ```
 
 You need to configure json loader in webpack to load the database
