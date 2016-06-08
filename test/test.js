@@ -63,11 +63,9 @@ describe('filterStyles', function () {
     waitForImport(style, function () {
       try {
         let el = document.getElementsByClassName('dummy2')[0]
-        console.log('first expect')
         expect(window.getComputedStyle(el)['flexDirection']).to.equal('column')
         filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}, function (filterRes) {
           newStylesElems.push(filterRes.styleElement)
-          console.log('second expect')
           expect(window.getComputedStyle(el)['flexDirection']).to.equal('row')
           done()
         })
@@ -120,6 +118,23 @@ describe('resetStyles', function () {
       done()
     })
   })
+
+  it('should reset remote styles to initial state', function (done) {
+    loadStylesheet('https://fonts.googleapis.com/css?family=Roboto:300,400,500,700', function (style) {
+      let googlecss = window.CSSAntique.findStyleSheet('googleapis')[0]
+      expect(googlecss.disabled).to.be.false
+      let nbStyles = document.styleSheets.length
+      filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}, function (filterRes) {
+        expect(googlecss.disabled).to.be.true
+        // expect(document.styleSheets.length).to.not.equal(nbStyles)
+        resetStyles()
+        expect(googlecss.disabled).to.be.false
+        expect(document.styleSheets.length).to.equal(nbStyles)
+        newStylesElems.push(style)
+        done()
+      })
+    })
+  })
 })
 
 describe('filterStyles @media rules', function () {
@@ -158,9 +173,7 @@ describe('filterStyles @media rules', function () {
     let el = document.getElementsByClassName('mediarules')[0]
     expect(window.getComputedStyle(el)['font-size']).to.equal('24px')
     expect(window.getComputedStyle(el)['flex-direction']).to.equal('column')
-    console.log('going to filterStyles')
     filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}, function (filterRes) {
-      console.log('return from filterStyles')
       newStylesElems.push(filterRes.styleElement)
       expect(window.getComputedStyle(el)['font-size']).to.equal('24px')
       expect(window.getComputedStyle(el)['flex-direction']).to.equal('row')

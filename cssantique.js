@@ -19,8 +19,10 @@ var filterStyles = function filterStyles (options = { ignore: [], browser: {name
     // This new css sheet will replace the originals with rules containing only allowed properties
     let styleElement = document.createElement('style')
     document.head.appendChild(styleElement)
-    newStylesheets.push(styleElement) // Keep reference for resetStyles function
-    Array.prototype.push.apply(newStylesheets, stylesRemote)
+    // Keep reference for resetStyles function
+    newStylesheets.push(styleElement)
+    // Keep reference of new styles from convertRemoteStyles
+    Array.prototype.push.apply(newStylesheets, stylesRemote.map((s) => s.newStyle))
 
     let discarded = []
     for (let sheet of initialSheets) {
@@ -32,6 +34,8 @@ var filterStyles = function filterStyles (options = { ignore: [], browser: {name
         initialStylesheets.push(sheet) // Keep reference for resetStyles function
       }
     }
+    // Keep reference of initial styles from convertRemoteStyles for resetStyles
+    Array.prototype.push.apply(initialStylesheets, stylesRemote.map((s) => s.initialStyle))
     callback({styleElement, discarded})
   })
 }
@@ -61,7 +65,7 @@ function convertRemoteStyles () {
       return loadCSSCors(s.href)
         .then((style_tag) => {
           s.disabled = true
-          return style_tag
+          return {initialStyle: s, newStyle: style_tag}
         })
         .catch((e) => {
           console.log('could not convert remote style : ', e)

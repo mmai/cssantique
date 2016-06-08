@@ -1,6 +1,6 @@
 {
   "name": "cssantique",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Emulate old browsers CSS support",
   "main": "cssantique.js",
   "scripts": {
