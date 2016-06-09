@@ -1,6 +1,6 @@
 {
   "name": "cssantique",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "Emulate old browsers CSS support",
   "main": "cssantique.js",
   "scripts": {
@@ -27,7 +27,7 @@
     "webpack": "^1.12.14"
   },
   "dependencies": {
-    "browser-data": "^0.1.0"
+    "browser-data": "^0.2.0"
   },
   "repository": {
     "type": "git",
