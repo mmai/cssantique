@@ -1,4 +1,5 @@
 import { browserSupport, browsers } from 'browser-data'
+import loadCSSCors from './loadCSSCors'
 var fp = require('lodash/fp')
 
 let newStylesheets = []
@@ -10,8 +11,9 @@ let initialStylesheets = []
  * @param options = { ignore: [], browser: {name: 'Firefox', version: '3'} }
  * @param {function} callback with object parameter {styleElement, discarded} (DOMelement, Array of Strings)
  */
-var filterStyles = function filterStyles (options = { ignore: [], browser: {name: 'Firefox', version: '3'} } , callback) {
+var filterStyles = function filterStyles (options = { ignore: [], keepAttributes: [], browser: {name: 'Firefox', version: '3'} } , callback) {
   options.ignore = options.ignore || []
+  options.keepAttributes = options.keepAttributes || []
   convertRemoteStyles().then((stylesRemote) => {
     let currentBrowserSupport = fp.curry(browserSupport)(options.browser)
     let initialSheets = fp.filter((s) => !s.disabled, document.styleSheets)
@@ -27,7 +29,7 @@ var filterStyles = function filterStyles (options = { ignore: [], browser: {name
     let discarded = []
     for (let sheet of initialSheets) {
       if (!isIgnoredSheet(options.ignore, sheet)) {
-        let {parsed, ignored} = getParsedRules(currentBrowserSupport, sheet.cssRules)
+        let {parsed, ignored} = getParsedRules(currentBrowserSupport, sheet.cssRules, options.keepAttributes)
         discarded = fp.uniq(fp.concat(discarded, ignored))
         updateSheet(parsed, styleElement.sheet)
         sheet.disabled = true // Disable the original css sheet
@@ -90,7 +92,7 @@ function isIgnoredSheet (ignore, sheet) {
   return false
 }
 
-function getParsedRules (currentBrowserSupport, rules) {
+function getParsedRules (currentBrowserSupport, rules, keepAttributes = []) {
   var parsedRules = {parsed: [], ignored: []}
   fp.each((rule) => {
     if (rule instanceof window.CSSImportRule) {
@@ -100,7 +102,7 @@ function getParsedRules (currentBrowserSupport, rules) {
         ignored: fp.concat(parsedRules.ignored, cssParsedRules.ignored)
       }
     } else if (window.CSSFontFaceRule && rule instanceof window.CSSFontFaceRule) {
-      if (currentBrowserSupport('@font-face')) {
+      if (currentBrowserSupport('@font-face') || fp.includes('@font-face', keepAttributes)) {
         parsedRules.parsed.push(rule.cssText)
       } else {
         parsedRules.ignored.push('@font-face')
@@ -108,8 +110,8 @@ function getParsedRules (currentBrowserSupport, rules) {
     } else if (window.CSSKeyframesRule && rule instanceof window.CSSKeyframesRule) {
       // TODO implement keyframesrule rules
     } else if (window.CSSMediaRule && rule instanceof window.CSSMediaRule) {
-      if (currentBrowserSupport('@media')) {
-        const cleanedMediaRule = getCleanedMediaRule(currentBrowserSupport, rule)
+      if (currentBrowserSupport('@media') || fp.includes('@media', keepAttributes)) {
+        const cleanedMediaRule = getCleanedMediaRule(currentBrowserSupport, rule, keepAttributes)
         parsedRules.ignored = fp.concat(parsedRules.ignored, cleanedMediaRule.ignored)
         parsedRules.parsed.push(cleanedMediaRule.mediaRule)
       } else {
@@ -118,7 +120,7 @@ function getParsedRules (currentBrowserSupport, rules) {
     } else if ((typeof rule.style) !== 'object') {
       console.error(rule)
     } else {
-      const cleanedRule = getCleanedRule(currentBrowserSupport, rule)
+      const cleanedRule = getCleanedRule(currentBrowserSupport, rule, keepAttributes)
       parsedRules.ignored = fp.concat(parsedRules.ignored, cleanedRule.ignored)
       if (fp.has('rule', cleanedRule)) {
         parsedRules.parsed.push(`${cleanedRule.rule} {${cleanedRule.properties}}`)
@@ -128,11 +130,11 @@ function getParsedRules (currentBrowserSupport, rules) {
   return parsedRules
 }
 
-function getCleanedMediaRule (currentBrowserSupport, cssMediaRule) {
+function getCleanedMediaRule (currentBrowserSupport, cssMediaRule, keepAttributes = []) {
   let cleanedMediaRules = []
   let ignoredRules = []
   fp.each((mediaRule) => {
-    const cleanedMediaRule = getCleanedRule(currentBrowserSupport, mediaRule)
+    const cleanedMediaRule = getCleanedRule(currentBrowserSupport, mediaRule, keepAttributes)
     if (fp.has('rule', cleanedMediaRule)) {
       cleanedMediaRules.push(cleanedMediaRule)
     }
@@ -149,10 +151,22 @@ function getCleanedMediaRule (currentBrowserSupport, cssMediaRule) {
   }
 }
 
-function getCleanedRule (currentBrowserSupport, rule) {
+function getCleanedRule (currentBrowserSupport, rule, keepAttributes = []) {
   var cleanedRule = {ignored: []}
   var attributes = getAttributes(rule.style.cssText)
   var segregatedAttributes = fp.groupBy(currentBrowserSupport, attributes) // -> {true:[...], false:[...], undefined: [...]}
+
+  segregatedAttributes.true = segregatedAttributes.true || []
+
+  if (fp.has('false', segregatedAttributes)) {
+    keepAttributes.map((keep) => {
+      if (fp.includes(keep, segregatedAttributes.false)) {
+        segregatedAttributes.true.push(keep)
+        segregatedAttributes.false = segregatedAttributes.false.filter((e) => e !== keep)
+      }
+    })
+    cleanedRule.ignored = segregatedAttributes.false
+  }
 
   if (fp.has('true', segregatedAttributes)) {
     cleanedRule.rule = rule.selectorText
@@ -160,9 +174,7 @@ function getCleanedRule (currentBrowserSupport, rule) {
       (attribute) => `${attribute}: ${rule.style[attribute]}`
     ).join('; ')
   }
-  if (fp.has('false', segregatedAttributes)) {
-    cleanedRule.ignored = segregatedAttributes.false
-  }
+
   return cleanedRule
 }
 
@@ -174,36 +186,6 @@ function getAttributes (cssText) {
   return cssText.slice(begin, end).split(';')
     .map((dec) => dec.split(':')[0].trim())
     .filter((attr) => attr !== '')
-}
-
-function loadCSSCors (stylesheet_uri) {
-  return new Promise((resolve, reject) => {
-    var _xhr = window.XMLHttpRequest
-    var has_cred = false
-    try {has_cred = _xhr && ('withCredentials' in (new _xhr()));} catch(e) {}
-    if (!has_cred) {
-      reject('CORS not supported')
-    }
-    var xhr = new _xhr()
-    xhr.open('GET', stylesheet_uri)
-    xhr.onload = function () {
-      xhr.onload = xhr.onerror = null
-      if (xhr.status < 200 || xhr.status >= 300) {
-        reject('style failed to load: ' + stylesheet_uri)
-      } else {
-        var style_tag = document.createElement('style')
-        style_tag.appendChild(document.createTextNode(xhr.responseText))
-        // console.log(JSON.stringify(xhr.responseText))
-        document.head.appendChild(style_tag)
-        resolve(style_tag)
-      }
-    }
-    xhr.onerror = function () {
-      xhr.onload = xhr.onerror = null
-      reject('XHR CORS CSS fail:' + styleURI)
-    }
-    xhr.send()
-  })
 }
 
 var resetStyles = function resetStyles () {

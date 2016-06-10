@@ -9,6 +9,7 @@ let newStylesElems = []
 describe('filterStyles', function () {
   this.timeout(500000)
   before(reset)
+
   it('should ignore specified stylesheet files', function (done) {
     let mochacss = window.CSSAntique.findStyleSheet('mocha.css')[0]
     filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}, function (filterRes) {
@@ -32,17 +33,37 @@ describe('filterStyles', function () {
   })
 
   it('should read other domain external stylesheets', function (done) {
-    loadStylesheet('https://fonts.googleapis.com/css?family=Roboto:300,400,500,700', function (style) {
-      let googlecss = window.CSSAntique.findStyleSheet('googleapis')[0]
-      expect(googlecss.disabled).to.be.false
+    setContent('<div class="day-page">.</div>')
+    let el = document.getElementsByClassName('day-page')[0]
+    loadStylesheet('https://mmai.github.io/poemaze/css/main.css', function (style) {
+      let maincss = window.CSSAntique.findStyleSheet('main')[0]
+      expect(maincss.disabled).to.be.false
       filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}, function (filterRes) {
         newStylesElems.push(filterRes.styleElement)
-        expect(googlecss.disabled).to.be.true
+        expect(maincss.disabled).to.be.true
+        expect(window.getComputedStyle(el)['background-color']).to.equal('rgb(190, 207, 195)')
+        // expect(filterRes.styleElement.)
         newStylesElems.push(style)
         done()
       })
     })
   })
+  // it('should read other domain external stylesheets', function (done) {
+  //   setContent('<div class="clc-jobs-multi">.</div>')
+  //   let el = document.getElementsByClassName('day-page')[0]
+  //   loadStylesheet('http://cdn.sstatic.net/clc/styles/clc/jobs-multi.min.css?v=8ac823724e92', function (style) {
+  //     let maincss = window.CSSAntique.findStyleSheet('jobs-multi.min')[0]
+  //     expect(maincss.disabled).to.be.false
+  //     filterStyles({ignore: ['mocha.css'], browser: {name: 'Firefox', version: '3'}}, function (filterRes) {
+  //       newStylesElems.push(filterRes.styleElement)
+  //       expect(maincss.disabled).to.be.true
+  //       expect(window.getComputedStyle(el)['color']).to.equal('rgb(190, 207, 195)')
+  //       // expect(filterRes.styleElement.)
+  //       newStylesElems.push(style)
+  //       done()
+  //     })
+  //   })
+  // })
 
   it('should read local styles', function (done) {
     setContent('<style>.dummy {}</style>')
@@ -91,13 +112,27 @@ describe('filterStyles', function () {
     })
   })
 
+  it('should keep specified attributes', function (done) {
+    setContent('<div class="dummy2">.</div>')
+    let style = document.createElement('style')
+    style.textContent = ' .dummy2 { color: red; flex-direction: column; }'
+    document.head.appendChild(style)
+    newStylesElems.push(style)
+    let el = document.getElementsByClassName('dummy2')[0]
+
+    expect(window.getComputedStyle(el)['flexDirection']).to.equal('column')
+    filterStyles({ignore: ['mocha.css'], keepAttributes: ['flex-direction'], browser: {name: 'Firefox', version: '3'}}, function (filterRes) {
+      expect(window.getComputedStyle(el)['flexDirection']).to.equal('column')
+      expect(filterRes.discarded).to.deep.equal([])
+      done()
+    })
+  })
+
   it('should manage @keyframe rules')
 })
 
 describe('resetStyles', function () {
-  before(function () {
-    reset()
-  })
+  before(reset)
 
   it('should reset styles to initial state', function (done) {
     setContent('<div class="dummy2">.</div>')
